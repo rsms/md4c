@@ -11,6 +11,7 @@ function usage {
   echo "  -lib=static  Build static library"
   echo "  -clean       Recreate build directory and build from scratch"
   echo "  -w, -watch   Watch source files for changes and rebuild"
+  echo "  -t, -test    After building, run all tests"
   echo "  -h, -help    Show help on stdout and exit"
   echo "Note on -lib:"
   echo "  If -lib is not provided, static library is built on Windows and"
@@ -22,6 +23,7 @@ function usage {
 OPT_LIB=
 OPT_CLEAN=false
 OPT_WATCH=false
+OPT_TEST=false
 BUILD_DIR=build/release
 CMAKE_ARGS=()
 export CMAKE_BUILD_TYPE=release
@@ -45,6 +47,10 @@ while [[ $# -gt 0 ]]; do
     ;;
   -w|-watch|--watch)
     OPT_WATCH=true
+    shift
+    ;;
+  -t|-test|--test)
+    OPT_TEST=true
     shift
     ;;
   -lib=shared|--lib=shared)
@@ -106,7 +112,13 @@ else
   fi
 fi
 
-$BUILD_CMD
+function _build {
+  if $BUILD_CMD && $OPT_TEST; then
+    bash "$SRCDIR/scripts/run-tests.sh"
+  fi
+}
+
+_build
 
 if $OPT_WATCH; then
   if ! (which fswatch >/dev/null); then
@@ -125,9 +137,9 @@ if $OPT_WATCH; then
   while true; do
     echo "$PROG: Watching source files for changes..."
     pushd "$SRCDIR" >/dev/null
-    fswatch --one-event --latency=0.2 src/*.c src/*.h
+    fswatch --one-event --latency=0.2 src/*.{h,c} md2html/*.{h,c}
     popd >/dev/null
     echo -e "\x1bc"
-    $BUILD_CMD
+    _build
   done
 fi
